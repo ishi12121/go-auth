@@ -15,6 +15,7 @@ func main() {
 	// Set up logging
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.Println("Starting auth server...")
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -35,7 +36,14 @@ func main() {
 	db := &database.Database{DB: sqlxDB}
 
 	// Create and configure server
-	server := api.NewServer(db, cfg.Server.GetServerAddr(), cfg.Auth)
+	serverAddr := cfg.Server.GetServerAddr()
+	if serverAddr == "" {
+		defaultPort := "8080"
+		log.Printf("No server address configured, using default port %s", defaultPort)
+		serverAddr = ":" + defaultPort
+	}
+
+	server := api.NewServer(db, serverAddr, cfg.Auth)
 	server.SetupRoutes()
 
 	// Start server
