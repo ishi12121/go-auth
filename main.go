@@ -7,6 +7,7 @@ import (
 	"auth-server/internal/database"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -37,27 +38,30 @@ func main() {
 
 	// Get port from environment for Render deployment
 	port := os.Getenv("PORT")
-	if port == "" {
-		// Try to get port from config
-		serverAddr := cfg.Server.GetServerAddr()
+	var serverAddr string
+
+	if port != "" {
+		// Use environment variable port (for Render)
+		log.Printf("Using PORT from environment: %s", port)
+		serverAddr = ":" + port
+	} else {
+		// Try to get address from config
+		serverAddr = cfg.Server.GetServerAddr()
 		if serverAddr == "" {
 			// Fall back to default port
-			port = "8080"
-			log.Printf("No port configuration found, using default port %s", port)
+			log.Printf("No server address configured, using default port 8080")
+			serverAddr = ":8080"
 		} else {
-			// Extract port from serverAddr if it exists
 			log.Printf("Using configured server address: %s", serverAddr)
-			port = serverAddr
-			if serverAddr[0] == ':' {
-				port = serverAddr[1:] // Remove leading colon if present
+			// Make sure it has a leading colon for binding
+			if !strings.Contains(serverAddr, ":") {
+				serverAddr = ":" + serverAddr
 			}
 		}
-	} else {
-		log.Printf("Using PORT from environment: %s", port)
 	}
 
-	// Ensure port has leading colon for proper address format
-	serverAddr := ":" + port
+	// For Render deployment, we need to listen on 0.0.0.0 instead of localhost
+	serverAddr = strings.Replace(serverAddr, "localhost", "0.0.0.0", 1)
 
 	server := api.NewServer(db, serverAddr, cfg.Auth)
 	server.SetupRoutes()
