@@ -35,18 +35,35 @@ func main() {
 	// Create database wrapper
 	db := &database.Database{DB: sqlxDB}
 
-	// Create and configure server
-	serverAddr := cfg.Server.GetServerAddr()
-	if serverAddr == "" {
-		defaultPort := "8080"
-		log.Printf("No server address configured, using default port %s", defaultPort)
-		serverAddr = ":" + defaultPort
+	// Get port from environment for Render deployment
+	port := os.Getenv("PORT")
+	if port == "" {
+		// Try to get port from config
+		serverAddr := cfg.Server.GetServerAddr()
+		if serverAddr == "" {
+			// Fall back to default port
+			port = "8080"
+			log.Printf("No port configuration found, using default port %s", port)
+		} else {
+			// Extract port from serverAddr if it exists
+			log.Printf("Using configured server address: %s", serverAddr)
+			port = serverAddr
+			if serverAddr[0] == ':' {
+				port = serverAddr[1:] // Remove leading colon if present
+			}
+		}
+	} else {
+		log.Printf("Using PORT from environment: %s", port)
 	}
+
+	// Ensure port has leading colon for proper address format
+	serverAddr := ":" + port
 
 	server := api.NewServer(db, serverAddr, cfg.Auth)
 	server.SetupRoutes()
 
 	// Start server
+	log.Printf("Server starting on %s", serverAddr)
 	if err := server.Start(); err != nil {
 		log.Fatalf("Server error: %v", err)
 		os.Exit(1)
